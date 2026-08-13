@@ -2,48 +2,76 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>ระบบส่งงาน - เวลาไทย & นับถอยหลัง & อีเมล</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - ระบบจัดการและแจ้งเตือนส่งงาน</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; max-width: 480px; margin: 40px auto; padding: 20px; background: #f4f6f9; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .input-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .input-group label { font-size: 13px; font-weight: bold; color: #333; }
-        input, button { padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
-        button { background: #4CAF50; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: #45a049; }
-        .clock-box { background: #222; color: #0ff; padding: 12px; text-align: center; font-size: 18px; font-weight: bold; border-radius: 6px; margin-bottom: 15px; }
-        ul { padding-left: 0; list-style: none; }
-        li { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 5px solid #4CAF50; }
-        .task-info { display: flex; flex-direction: column; gap: 4px; width: 80%; }
-        .task-name { font-weight: bold; font-size: 15px; }
-        .time-tag { font-size: 12px; color: #e53935; font-weight: bold; }
-        .countdown-tag { font-size: 11px; color: #2196F3; font-weight: bold; }
-        .email-tag { font-size: 11px; color: #757575; }
-        .completed { text-decoration: line-through; color: gray; }
-        .completed .task-name, .completed .time-tag, .completed .countdown-tag { color: gray; text-decoration: line-through; }
-        .delete-btn { background: #f44336; padding: 6px 10px; font-size: 12px; height: fit-content; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .delete-btn:hover { background: #d32f2f; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Prompt', sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        
+        .container { width: 100%; max-width: 500px; background: #ffffff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        h2 { color: #2d3748; font-weight: 600; margin-bottom: 20px; text-align: center; font-size: 24px; }
+        
+        .clock-box { background: #1a202c; color: #00ffcc; padding: 12px; text-align: center; font-size: 16px; font-weight: 500; border-radius: 8px; margin-bottom: 20px; letter-spacing: 1px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
+        
+        .input-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 25px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        .input-group label { font-size: 13px; font-weight: 500; color: #4a5568; }
+        
+        input { padding: 12px; font-size: 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-family: 'Prompt', sans-serif; transition: all 0.3s ease; }
+        input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15); }
+        
+        button.add-btn { background: #667eea; color: white; border: none; padding: 12px; font-size: 15px; font-weight: 500; border-radius: 8px; cursor: pointer; transition: background 0.3s ease, transform 0.1s; font-family: 'Prompt', sans-serif; }
+        button.add-btn:hover { background: #5a67d8; }
+        button.add-btn:active { transform: scale(0.98); }
+        
+        ul { list-style: none; display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; padding-right: 5px; }
+        
+        li { display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 14px 16px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); border: 1px solid #edf2f7; border-left: 5px solid #667eea; transition: transform 0.2s; }
+        li:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.05); }
+        
+        .task-info { display: flex; flex-direction: column; gap: 4px; width: 80%; cursor: pointer; }
+        .task-name { font-weight: 600; font-size: 15px; color: #2d3748; }
+        .time-tag { font-size: 12px; color: #e53e3e; font-weight: 500; }
+        .countdown-tag { font-size: 11px; color: #3182ce; font-weight: 500; }
+        .email-tag { font-size: 11px; color: #718096; }
+        
+        .completed { background: #f7fafc; border-left-color: #cbd5e0; }
+        .completed .task-name, .completed .time-tag, .completed .countdown-tag, .completed .email-tag { color: #a0aec0; text-decoration: line-through; }
+        
+        .delete-btn { background: #fed7d7; color: #c53030; border: none; padding: 8px 12px; font-size: 12px; font-weight: 500; border-radius: 6px; cursor: pointer; transition: background 0.2s; font-family: 'Prompt', sans-serif; height: fit-content; }
+        .delete-btn:hover { background: #feb2b2; }
+
+        /* ตกแต่ง Scrollbar ให้ดูสวยงาม */
+        ul::-webkit-scrollbar { width: 6px; }
+        ul::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
     </style>
 </head>
 <body>
 
-    <h2>ระบบส่งงาน (นับถอยหลัง + แจ้งเตือนเมล)</h2>
-    
-    <div class="clock-box" id="liveClock">กำลังโหลดเวลาไทย...</div>
+    <div class="container">
+        <h2>✨ TaskFlow แจ้งเตือนส่งงาน</h2>
+        
+        <div class="clock-box" id="liveClock">🕒 กำลังโหลดเวลาไทย...</div>
 
-    <div class="input-group">
-        <label for="taskInput">ชื่องาน:</label>
-        <input type="text" id="taskInput" placeholder="เช่น ส่งการบ้านวิชาคอมพิวเตอร์">
-        
-        <label for="timeInput">กำหนดเวลา (24 ชั่วโมง):</label>
-        <input type="time" id="timeInput">
-        
-        <label for="emailInput">อีเมลสำหรับรับแจ้งเตือน (ไม่บังคับ):</label>
-        <input type="email" id="emailInput" placeholder="example@email.com">
-        
-        <button onclick="addTask()">เพิ่มงานและตั้งเตือน</button>
+        <div class="input-group">
+            <div>
+                <label for="taskInput">ชื่องาน:</label>
+                <input type="text" id="taskInput" placeholder="เช่น การบ้านคณิตศาสตร์ บทที่ 3">
+            </div>
+            <div>
+                <label for="timeInput">กำหนดเวลา (24 ชั่วโมง):</label>
+                <input type="time" id="timeInput">
+            </div>
+            <div>
+                <label for="emailInput">อีเมลผู้รับแจ้งเตือน (ไม่บังคับ):</label>
+                <input type="email" id="emailInput" placeholder="your-email@example.com">
+            </div>
+            <button class="add-btn" onclick="addTask()">+ เพิ่มงานและตั้งเตือน</button>
+        </div>
+
+        <ul id="taskList"></ul>
     </div>
-
-    <ul id="taskList"></ul>
 
     <script>
         // เสียงแจ้งเตือน
@@ -106,8 +134,8 @@
             infoDiv.innerHTML = `
                 <span class="task-name">${taskText}</span> 
                 <span class="time-tag">⏰ กำหนดส่ง: ${taskTime} น.</span>
-                <span class="countdown-tag" id="cd-${Date.now()}">กำลังคำนวณเวลาถอยหลัง...</span>
-                ${taskEmail ? `<span class="email-tag">📧 อีเมล: ${taskEmail}</span>` : ''}
+                <span class="countdown-tag" id="cd-${Date.now()}">⏳ กำลังคำนวณเวลา...</span>
+                ${taskEmail ? `<span class="email-tag">📧 แจ้งเตือน: ${taskEmail}</span>` : ''}
             `;
             
             infoDiv.onclick = function() {
@@ -157,10 +185,10 @@
                     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-                    countdownTag.textContent = `⏳ เหลือเวลาอีก: ${hours} ชม. ${minutes} นาที ${seconds} วินาที`;
+                    countdownTag.textContent = `⏳ เหลือเวลา: ${hours} ชม. ${minutes} นาที ${seconds} วินาที`;
                 } else {
                     countdownTag.textContent = `⚠️ ถึงกำหนดเวลาแล้ว!`;
-                    countdownTag.style.color = '#f44336';
+                    countdownTag.style.color = '#e53e3e';
 
                     if (isNotified === 'false') {
                         playAlarmSound();
