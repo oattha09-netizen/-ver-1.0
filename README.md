@@ -1,2 +1,2 @@
-# -ver-1.0
-Test
+# -Homework Submission Notification-1.2-BETA
+BETA-1.2
