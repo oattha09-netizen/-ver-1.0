@@ -2,39 +2,42 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>ระบบส่งงาน - เวลาไทย & เสียงแจ้งเตือน</title>
+    <title>ระบบส่งงาน - เวลาไทย & นับถอยหลัง & อีเมล</title>
     <style>
-        body { font-family: sans-serif; max-width: 450px; margin: 40px auto; padding: 20px; background: #f4f6f9; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; max-width: 480px; margin: 40px auto; padding: 20px; background: #f4f6f9; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
         input, button { padding: 10px; font-size: 14px; }
         button { background: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 4px; }
         button:hover { background: #45a049; }
         .clock-box { background: #222; color: #0ff; padding: 10px; text-align: center; font-size: 18px; font-weight: bold; border-radius: 4px; margin-bottom: 15px; }
         ul { padding-left: 20px; }
-        li { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; background: white; padding: 8px 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .task-info { display: flex; flex-direction: column; }
+        li { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .task-info { display: flex; flex-direction: column; gap: 3px; }
         .time-tag { font-size: 12px; color: #e53935; font-weight: bold; }
+        .countdown-tag { font-size: 11px; color: #2196F3; font-weight: bold; }
+        .email-tag { font-size: 11px; color: #757575; }
         .completed { text-decoration: line-through; color: gray; }
-        .delete-btn { background: #f44336; padding: 5px 8px; font-size: 12px; }
+        .delete-btn { background: #f44336; padding: 5px 8px; font-size: 12px; height: fit-content; }
     </style>
 </head>
 <body>
 
-    <h2>ระบบส่งงาน (เวลาไทย 24 ชม.)</h2>
+    <h2>ระบบส่งงาน (นับถอยหลัง + แจ้งเตือนเมล)</h2>
     
     <div class="clock-box" id="liveClock">กำลังโหลดเวลาไทย...</div>
 
     <div class="input-group">
         <input type="text" id="taskInput" placeholder="ชื่องาน...">
-        <label for="timeInput">กำหนดเวลา (รูปแบบ 24 ชั่วโมง เช่น 13:45):</label>
+        <label for="timeInput">กำหนดเวลา (รูปแบบ 24 ชั่วโมง):</label>
         <input type="time" id="timeInput">
+        <input type="email" id="emailInput" placeholder="อีเมลสำหรับรับแจ้งเตือน (ไม่บังคับ)">
         <button onclick="addTask()">เพิ่มงานและตั้งเตือน</button>
     </div>
 
     <ul id="taskList"></ul>
 
     <script>
-        // ฟังก์ชันสร้างเสียงเตือนปี๊بๆ
+        // เสียงแจ้งเตือน
         function playAlarmSound() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -42,20 +45,20 @@
                 const gainNode = audioCtx.createGain();
 
                 oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // ความถี่เสียง
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
                 gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
 
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
 
                 oscillator.start();
-                oscillator.stop(audioCtx.currentTime + 0.5); // ดัง 0.5 วินาที
+                oscillator.stop(audioCtx.currentTime + 0.5);
             } catch (e) {
-                console.log("Audio blocked or not supported");
+                console.log("Audio blocked");
             }
         }
 
-        // อัปเดตนาฬิกาเวลาไทย (Asia/Bangkok) ทุกๆ 1 วินาที
+        // นาฬิกาเรียลไทม์เวลาไทย
         setInterval(function() {
             const now = new Date();
             const options = { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
@@ -63,24 +66,42 @@
             document.getElementById('liveClock').textContent = `🕒 เวลาไทยปัจจุบัน: ${timeString}`;
         }, 1000);
 
-        // ฟังก์ชันเพิ่มงาน
         function addTask() {
             const input = document.getElementById('taskInput');
             const timeInput = document.getElementById('timeInput');
+            const emailInput = document.getElementById('emailInput');
             
             const taskText = input.value.trim();
-            const taskTime = timeInput.value; // จะได้ค่าเป็น "HH:MM" (ระบบ 24 ชม.)
+            const taskTime = timeInput.value;
+            const taskEmail = emailInput.value.trim();
 
             if (taskText === '' || taskTime === '') {
                 alert('กรุณากรอกชื่องานและเวลาให้ครบถ้วนครับ!');
                 return;
             }
 
+            // แปลงเวลาเป้าหมายเป็น Timestamp สำหรับคำนวณถอยหลัง
+            const now = new Date();
+            const [targetHour, targetMinute] = taskTime.split(':').map(Number);
+            
+            const targetDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+            targetDate.setHours(targetHour, targetMinute, 0, 0);
+
+            // ถ้าเวลาที่ตั้งผ่านมาแล้วในวันนี้ ให้ปัดไปเป็นวันพรุ่งนี้
+            if (targetDate <= now) {
+                targetDate.setDate(targetDate.getDate() + 1);
+            }
+
             const li = document.createElement('li');
             
             const infoDiv = document.createElement('div');
             infoDiv.className = 'task-info';
-            infoDiv.innerHTML = `<span>${taskText}</span> <span class="time-tag">⏰ ${taskTime} น.</span>`;
+            infoDiv.innerHTML = `
+                <span>${taskText}</span> 
+                <span class="time-tag">⏰ กำหนดส่ง: ${taskTime} น.</span>
+                <span class="countdown-tag" id="cd-${Date.now()}">กำลังคำนวณเวลาถอยหลัง...</span>
+                ${taskEmail ? `<span class="email-tag">📧 แจ้งเตือนไปที่: ${taskEmail}</span>` : ''}
+            `;
             
             infoDiv.onclick = function() {
                 infoDiv.classList.toggle('completed');
@@ -96,45 +117,55 @@
             li.appendChild(infoDiv);
             li.appendChild(delBtn);
             
-            li.setAttribute('data-time', taskTime);
+            li.setAttribute('data-target-time', targetDate.getTime());
+            li.setAttribute('data-time-str', taskTime);
+            li.setAttribute('data-task-name', taskText);
+            li.setAttribute('data-email', taskEmail);
             li.setAttribute('data-notified', 'false');
 
             document.getElementById('taskList').appendChild(li);
 
+            // เคลียร์ฟอร์ม
             input.value = '';
             timeInput.value = '';
+            emailInput.value = '';
         }
 
-        // เช็กเวลาเพื่อแจ้งเตือนทุกๆ 1 วินาที (เทียบกับเวลาไทย)
+        // ลูปเช็กเวลาและอัปเดตตัวนับถอยหลังทุกๆ 1 วินาที
         setInterval(function() {
-            const now = new Date();
-            const hours = String(now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', hour12: false })).padStart(2, '0');
-            // ดึงนาทีตามเวลาไทย
-            const minutes = String(new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', minute: '2-digit' })).padStart(2, '0');
-            
-            // ดึงชั่วโมงและนาทีที่ถูกต้องตามโซนเวลาไทย
-            const formatterH = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', hour12: false });
-            const formatterM = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', minute: '2-digit', hour12: false });
-            
-            const currentH = formatterH.format(now);
-            const currentM = formatterM.format(now);
-            const currentTime = `${currentH}:${currentM}`;
-
+            const now = new Date().getTime();
             const tasks = document.querySelectorAll('#taskList li');
+
             tasks.forEach(li => {
-                const taskTime = li.getAttribute('data-time');
+                const targetTime = parseInt(li.getAttribute('data-target-time'));
+                const taskTimeStr = li.getAttribute('data-time-str');
+                const taskName = li.getAttribute('data-task-name');
+                const taskEmail = li.getAttribute('data-email');
                 const isNotified = li.getAttribute('data-notified');
+                
+                const countdownTag = li.querySelector('.countdown-tag');
+                const diff = targetTime - now;
 
-                if (taskTime === currentTime && isNotified === 'false') {
-                    const taskName = li.querySelector('.task-info span').textContent;
-                    
-                    // เล่นเสียงแจ้งเตือน
-                    playAlarmSound();
+                if (diff > 0) {
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                    countdownTag.textContent = `⏳ เหลือเวลาอีก: ${hours} ชม. ${minutes} นาที ${seconds} วินาที`;
+                } else {
+                    countdownTag.textContent = `⚠️ ถึงกำหนดเวลาแล้ว!`;
+                    countdownTag.style.color = '#f44336';
 
-                    // แจ้งเตือนผ่าน Popup
-                    alert(`🚨 ถึงเวลาส่งงานแล้ว!\nงาน: ${taskName}\nเวลา: ${taskTime} น.`);
+                    if (isNotified === 'false') {
+                        playAlarmSound();
+                        
+                        let alertMsg = `🚨 ถึงเวลาส่งงานแล้ว!\nงาน: ${taskName}\nกำหนดการ: ${taskTimeStr} น.`;
+                        if (taskEmail) {
+                            alertMsg += `\n(ระบบจำลอง: ส่งอีเมลแจ้งเตือนไปยัง ${taskEmail} เรียบร้อย)`;
+                        }
+                        alert(alertMsg);
 
-                    li.setAttribute('data-notified', 'true');
+                        li.setAttribute('data-notified', 'true');
+                    }
                 }
             });
         }, 1000);
