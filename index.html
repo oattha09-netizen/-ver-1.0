@@ -2,13 +2,14 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>To-Do List แจ้งเตือนระดับนาที</title>
+    <title>ระบบส่งงาน - เวลาไทย & เสียงแจ้งเตือน</title>
     <style>
         body { font-family: sans-serif; max-width: 450px; margin: 40px auto; padding: 20px; background: #f4f6f9; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
         input, button { padding: 10px; font-size: 14px; }
         button { background: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 4px; }
         button:hover { background: #45a049; }
+        .clock-box { background: #222; color: #0ff; padding: 10px; text-align: center; font-size: 18px; font-weight: bold; border-radius: 4px; margin-bottom: 15px; }
         ul { padding-left: 20px; }
         li { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; background: white; padding: 8px 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .task-info { display: flex; flex-direction: column; }
@@ -19,11 +20,13 @@
 </head>
 <body>
 
-    <h2>ระบบส่งงาน (แจ้งเตือนถึงนาที)</h2>
+    <h2>ระบบส่งงาน (เวลาไทย 24 ชม.)</h2>
     
+    <div class="clock-box" id="liveClock">กำลังโหลดเวลาไทย...</div>
+
     <div class="input-group">
         <input type="text" id="taskInput" placeholder="ชื่องาน...">
-        <label for="timeInput">กำหนดเวลาแจ้งเตือน:</label>
+        <label for="timeInput">กำหนดเวลา (รูปแบบ 24 ชั่วโมง เช่น 13:45):</label>
         <input type="time" id="timeInput">
         <button onclick="addTask()">เพิ่มงานและตั้งเตือน</button>
     </div>
@@ -31,17 +34,42 @@
     <ul id="taskList"></ul>
 
     <script>
-        // ฟังก์ชันขอสิทธิ์แจ้งเตือนบนเบราว์เซอร์
-        if (Notification.permission !== "granted") {
-            Notification.requestPermission();
+        // ฟังก์ชันสร้างเสียงเตือนปี๊بๆ
+        function playAlarmSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // ความถี่เสียง
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.5); // ดัง 0.5 วินาที
+            } catch (e) {
+                console.log("Audio blocked or not supported");
+            }
         }
 
+        // อัปเดตนาฬิกาเวลาไทย (Asia/Bangkok) ทุกๆ 1 วินาที
+        setInterval(function() {
+            const now = new Date();
+            const options = { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            const timeString = new Intl.DateTimeFormat('th-TH', options).format(now);
+            document.getElementById('liveClock').textContent = `🕒 เวลาไทยปัจจุบัน: ${timeString}`;
+        }, 1000);
+
+        // ฟังก์ชันเพิ่มงาน
         function addTask() {
             const input = document.getElementById('taskInput');
             const timeInput = document.getElementById('timeInput');
             
             const taskText = input.value.trim();
-            const taskTime = timeInput.value;
+            const taskTime = timeInput.value; // จะได้ค่าเป็น "HH:MM" (ระบบ 24 ชม.)
 
             if (taskText === '' || taskTime === '') {
                 alert('กรุณากรอกชื่องานและเวลาให้ครบถ้วนครับ!');
@@ -52,9 +80,8 @@
             
             const infoDiv = document.createElement('div');
             infoDiv.className = 'task-info';
-            infoDiv.innerHTML = `<span>${taskText}</span> <span class="time-tag">⏰ ${taskTime}</span>`;
+            infoDiv.innerHTML = `<span>${taskText}</span> <span class="time-tag">⏰ ${taskTime} น.</span>`;
             
-            // คลิกที่ข้อความเพื่อสลับสถานะเสร็จ
             infoDiv.onclick = function() {
                 infoDiv.classList.toggle('completed');
             };
@@ -69,23 +96,29 @@
             li.appendChild(infoDiv);
             li.appendChild(delBtn);
             
-            // เก็บเวลาไว้ที่ตัว li เพื่อให้ระบบตรวจสอบ
             li.setAttribute('data-time', taskTime);
             li.setAttribute('data-notified', 'false');
 
             document.getElementById('taskList').appendChild(li);
 
-            // เคลียร์ช่องกรอก
             input.value = '';
             timeInput.value = '';
         }
 
-        // ฟังก์ชันคอยเช็กเวลาทุกๆ 1 วินาที
+        // เช็กเวลาเพื่อแจ้งเตือนทุกๆ 1 วินาที (เทียบกับเวลาไทย)
         setInterval(function() {
             const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const currentTime = `${hours}:${minutes}`;
+            const hours = String(now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', hour12: false })).padStart(2, '0');
+            // ดึงนาทีตามเวลาไทย
+            const minutes = String(new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', minute: '2-digit' })).padStart(2, '0');
+            
+            // ดึงชั่วโมงและนาทีที่ถูกต้องตามโซนเวลาไทย
+            const formatterH = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', hour12: false });
+            const formatterM = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Bangkok', minute: '2-digit', hour12: false });
+            
+            const currentH = formatterH.format(now);
+            const currentM = formatterM.format(now);
+            const currentTime = `${currentH}:${currentM}`;
 
             const tasks = document.querySelectorAll('#taskList li');
             tasks.forEach(li => {
@@ -95,16 +128,12 @@
                 if (taskTime === currentTime && isNotified === 'false') {
                     const taskName = li.querySelector('.task-info span').textContent;
                     
-                    // แจ้งเตือนผ่าน Browser Notification
-                    if (Notification.permission === "granted") {
-                        new Notification("🚨 ถึงเวลาส่งงานแล้ว!", {
-                            body: `งาน: ${taskName} ถึงกำหนดเวลา ${taskTime} แล้วครับ!`,
-                        });
-                    } else {
-                        alert(`🚨 ถึงเวลาส่งงานแล้ว!\nงาน: ${taskName}`);
-                    }
+                    // เล่นเสียงแจ้งเตือน
+                    playAlarmSound();
 
-                    // ป้องกันไม่ให้เตือนซ้ำในนาทีเดิม
+                    // แจ้งเตือนผ่าน Popup
+                    alert(`🚨 ถึงเวลาส่งงานแล้ว!\nงาน: ${taskName}\nเวลา: ${taskTime} น.`);
+
                     li.setAttribute('data-notified', 'true');
                 }
             });
